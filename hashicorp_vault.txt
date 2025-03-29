@@ -1,0 +1,121 @@
+VAULT:
+which is used to store the secrets in a secure way. They are two types of vaults.
+
+They are 1. dev server (for development)
+         2. prod server (for production)
+
+difference between dev server vs prod server:
+
+dev server:
+
+in simple, it is a temporary vault. Data that is stored inside the vault is stored in RAM, that means whenever we
+delete or restart the vault pod then data inside the vault will be gone. 
+
+it is used for learning purpose or lower environment only. PV(Persistent Volume) also not available.
+
+prod server:
+PV is available and popular storages are raft(built-in storage) and consul(external storage)
+when the vault prod is delete or restarted then data is still available.
+
+when you deploy a prod server vault, it will deploy 3 prod server i.e vault-0,vault-1 and vault-2
+here vault-0 is the leader and vault-1,vault-2 are followers. They are sync with each other and if vault-0
+goes down still we can access the data from vault-1,2. We can say that prod server vault is HA(High Available)
+
+
+How to setup Dev Server Hashicorp Vault:
+1. first create the k8s cluster
+2. create the namespace for vault(optional but good to have) i.e kubectl create ns vault
+3. create the service account(vault-auth) in that namespace that the application is running, so that application pod can
+   connect to vault. i.e which is used for authentication -> kubectl create sa vault-auth -n webapp
+
+4. install the hashicorp vault in vault namespace.
+
+    helm vault repo -> helm repo add hashicorp https://helm.releases.hashicorp.com
+    update repo -> helm repo update
+    install the vault -> helm install vault hashicorp/vault -n vault --set "server.dev.enabled=true"
+
+    for verification -> kubectl get all -n vault  i.e you can see that vault pod is running.
+
+5. bydefault, vault service is running in clusterIP mode. so You cannot access in browser. so we need to 
+   change to Nodeport or load balancer inorder to access in browser. or you can edit the service 
+   i.e kubectl edit svc svc_name -n vault.   
+
+      service.yaml:
+
+      apiVersion: v1
+      kind: service
+      metadata:
+        name: vault
+        namespace: vault
+      spec:
+        type: NodePort
+        selector:
+          app.kubernetes.io/name: vault
+        ports:
+          - port: 8200
+            targetPort: 8200
+            nodePort: 8200
+
+6. access in browser and it select as method as token and for token value, just check the logs of the vault pod.
+   there you can see the root token. copy the value and paste it in browser.
+
+7. on left side, you can find the secret engine. here you can create the secrets.
+
+8. they are different types of secrets is there. you can choose according to your requirements.
+
+9. now we need to enable kubernetes authentication with vault.
+    
+     -> kubectl exec -n vault -it vault-0 -- vault auth enable kubernetes 
+
+10. now we need to configure the authentication.
+
+   kubectl exec -n vault -it vault-0 -- vault write auth/kubernetes/config \
+   token_reviewer_jwt="$(kubectl get secret -n kube-system $(kubectl get sa vault-auth(mention service account name)
+    -n webapp -o jsonpath="{.secrets[0].name}") -o jsonpath="{.data.token}" | base64 --decode)" \ i.e it will get the secret of vault-auth
+
+    kubernetes_host="$(kubectl config view --raw -o=jsonpath='{.ckusters[0].cluster.server}')" \  i.e it will get the api server url
+
+    kubernetes_ca_cert="$(kubectl get secret -n kube-system $(kubectl get sa vault-auth -n webapp -o jsonpath
+    ="{.secrets[0].name}") -o jsonpath="{.data['ca.crt']}" | base64 --decode)"   i.e it will get the certificate for verification.
+
+
+11. we need to create the policies(permissions) for the service account for specific path in the vault UI.
+
+     myapp-policy.hcl:
+
+     path "secret/data/mysql" {
+        capabilities = ["create", "update", "delete", "read", "list"]
+     }  
+
+     path "secret/data/frontend" {
+        capabilities = ["create", "update", "delete", "read", "list"]
+     } 
+
+12. after creating the policy, we need to copy the policy to vault-0 pod.
+
+      -> kubectl cp myapp-policy.hcl vault/vault-0:/tmp/myapp-policy.hcl
+
+13. we need to apply that policy in vault.
+
+     -> kubectl exec -n vault -it vault-0 policy write myapp-policy /tmp/myapp-policy.hcl
+
+14. we need to create the role to bind the service account to the policy.
+
+     kubectl exec -n vault -it vault-0 -- vault write auth/kubernetes/role/vault-role \
+     bound_service_account_names=vault-auth \
+     bound_service_account_namespaces="webapp" \
+     policies=myapp-policy \
+     ttl=25h
+
+     for verification: kubectl exec -n vault -it vault-0 -- vault read auth/kubernetes/role/vault-role
+
+15. add the secrets to the vault using kubectl or you can create in UI also.
+
+    kubectl exec -n vault -it vault-0 -- vault kv put secret/mysql MYSQL_DATABASE=webappdb \
+    MYSQL_ROOT_PASSWORD=Raju@123
+
+    kubectl exec -n vault -it vault-0 -- vault kv put secret/frontend MYSQL_ROOT_PASSWORD=Raju@123
+
+16. go to vault UI, click on secret engine and then click on secret. here you will find two secrets i.e mysql,frontend.
+
+17. add the secrets to yaml file.

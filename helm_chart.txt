@@ -1,0 +1,322 @@
+HELM:
+
+Helm is a package manager for kubernetes. it is used to build, deploy and manage application easily.
+
+problems without helm:
+1. defining/managing and executing multiple manifest file.
+2. deployment ordering challenges
+3. versioning and rollbacks for all resources.
+4. environment-specific configuration files.
+
+the above problems are resolved using helm.
+
+helm chart can be created in two ways:
+1. manually you can create the folder
+2. using helm command
+
+command to create the helm chart - helm create my-chart(chart_name)
+
+if you want to see the structure of the helm chart then after creating it, go inside the helm chart and run tree 
+command to the folder structure present in it but before that install the tree.
+
+the files present in the helm chart is:
+1. chart.yml - which contains the metadata about the project
+2. charts - which contains the dependency information
+3. templates -  which contains the manifest yaml files written in ginjar templates.
+4. values.yml - which is used to pass values to the yaml file that are present in the template folder.
+5. notes.txt - it is used to follow the instructions when the helm chart is deployed in k8s cluster
+               for example: if you want to get the application url after the chart is deployed then that
+               command is mentioned here.
+6. helpers.tpl - which is used for reusable functions.
+
+in the template yml files, they are 3 types of variables are present:
+1. release - while deploying the helm chart, whatever name is given that name is taken here.
+2. chart -  this values are coming from chart.yml file.
+3. values - this values are coming from the values.yml file.
+
+command to deploy the helm chart - helm install my-deployment .(path of helm chart here current directory) -n dev
+
+command to list the helm deployments - helm list
+
+if you have modified the helm chart and you want to apply the changes, command is - helm upgrade name_of_deployment path_of_helm_chart -n namespace_name
+
+if you want to rollback to the specific version, command is - helm rollback name_of_deployment revision_number -n namespace_name
+
+if you want to change some values in values.yml, but you don't want to go and modify in the helm chart then 
+use this command - helm upgrade name_of_deployment path_of_helm_chart --set replicaCount=2 -n namespace_name
+
+if you want to delete the helm_chart deployment, command is  - helm uninstall name_of_deployment -n namespace_name
+i.e it will delete all the resources.
+
+How to deploy helm chart to different environment:
+
+   you create the separate values.yml file for each environment and while deploying the helm chart pass that 
+   environment specific values.yml file.
+   command is - helm install name_of_deployment path_of_helm_chart -f name_of_values.yml file -n namespace_name
+
+
+command to package the helm chart - helm package name_of_helm_chart
+i.e it will be packaged and you can upload anywhere and anyone can access it. basically it package as .tgz
+
+
+NOTE:
+https://artifacthub.io -> website for helm packages.
+
+if you want to override the values.yml file values in commandline while deploying the helm chart then use -- set.
+and then name that is mentioned in the values.yml file and it's value.
+
+command -> helm install --set replicaCount=4 my-deployment .
+
+if you have too many values then you can create yaml file and then pass it to helm command.
+
+custom-values.yml:
+
+replicaCount: 4
+Name: my-Deployment
+
+command ->  helm install --values custom-values.yml my-deployment .
+
+if you want to download the helm chart from anysource -> helm pull helm_chart_name
+it will download as tar file, you need to untar it -> helm pull --untar name_of_helm_chart
+
+
+
+Interview Questions:
+
+1. what is helm.
+Helm is a tool for managing Kubernetes applications. It helps you easily deploy, manage, and configure software 
+on Kubernetes by using pre-packaged templates called "charts." Essentially, it's like a package manager
+for Kubernetes.
+
+2.what are helm charts.
+Helm charts are pre-configured templates for Kubernetes applications. They define how to deploy and manage
+an app or service on Kubernetes, including its components, configurations, and dependencies. 
+Think of them as reusable blueprints for setting up applications on Kubernetes.
+
+3. what is the structure of a helm chart and what files are present in it.
+ the common files and directories found in a Helm chart:
+ 
+ Chart.yaml:
+ This file contains metadata about the chart, like its name, version, description, and dependencies.
+
+ values.yaml:
+ A default configuration file where you can define values that can be customized during installation or
+ upgrade (like image names, ports, etc.).
+
+ charts/:
+ This directory contains any dependent charts that the current chart relies on.
+
+ templates/:
+ Contains Kubernetes manifest templates (like Deployment, Service, ConfigMap) written in YAML. 
+ These templates are processed using the values from values.yaml to generate Kubernetes resources.
+
+ Chart.lock (optional):
+ A file that locks down dependencies to specific versions (if any are used), ensuring repeatable installs.
+
+ README.md (optional):
+ A markdown file describing the chart, how to use it, and any important details.
+
+4.how does the values.yaml file works in helm and why it is important.
+  The values.yaml file in Helm is crucial because it defines the default configuration values for a Helm chart. 
+  It allows you to customize the deployment of an application without modifying the chart itself.
+
+ When deploying the chart, you can override the default values by providing a custom values.yaml file or 
+ using --set commands to specify custom values, allowing flexibility and customization for different environments.
+
+ why it is important:
+ The values.yaml file is important because it separates configuration from the application code, making it
+ easy to customize deployments. It allows you to change settings without modifying the chart itself. 
+ This flexibility ensures consistent and repeatable deployments. It also simplifies upgrades and makes 
+charts reusable in different environments.
+
+5.what is a release in helm.
+  A release in Helm is an instance of a Helm chart that has been deployed to a Kubernetes cluster.
+  It represents a specific configuration of a chart with unique settings and can be upgraded, rolled back,
+  or deleted. Each release is identified by a name, and you can have multiple releases of the same chart 
+  with different configurations
+
+6.explain what is helm release is and how it is different from a chart.
+  A Helm release is a specific instance of a Helm chart that has been deployed to a Kubernetes cluster.
+  It is the actual running version of an application that was created using a chart, with a particular
+  configuration and name.
+
+  helm chart:
+  A chart is a package containing all the necessary Kubernetes resource definitions 
+  (like deployments, services, config maps) and configuration templates.
+
+   It is a blueprint or template for deploying an application.
+
+  A chart itself doesn't contain any actual running application; it only defines the structure and configuration.
+
+  helm release:
+  A release is a deployed instance of a Helm chart on a Kubernetes cluster.
+
+  It is a runtime representation of the chart, where you can customize its values 
+  (using the values.yaml file or --set command).
+
+  Each release is assigned a unique name and can be upgraded, rolled back, or deleted independently of
+  other releases.
+
+7.how do you install a helm chart
+  
+  1.Install Helm: Ensure Helm is installed on your system. 
+
+  2.Add Chart Repository: Add a Helm chart repository (if needed) and update it. -> helm repo add <repo-name> <repo-url>
+                                                                                    helm repo update
+
+
+  3.Search for Chart (optional): Search for available charts using helm search repo. -> helm search repo <chart-name>
+
+  4.Install the Chart: Use helm install <release-name> <chart-name> to install the chart. -> helm install <release-name> <chart-name> [--values <custom-values.yaml>]
+
+  5.Verify Installation: Check the list of installed releases with helm list. -> helm list 
+
+8.can you walk me through the process of installing a helm chart on a k8s cluster.
+  
+  1.Install Helm: Ensure Helm is installed on your local machine.
+
+  2.Set Up Kubernetes Cluster: Make sure your cluster is running and kubectl is configured.
+
+  3.Add Helm Chart Repository: Add the chart repository (e.g., official or custom) using helm repo add.
+
+  4.Search for the Chart (optional): Use helm search repo to find the desired chart.
+
+  5.Install the Chart: Run helm install <release-name> <chart-name> to install the chart.
+
+  6.Verify Installation: Use helm list and kubectl get all to check the deployment.
+
+9.how can you upgrade or rollback a helm release.  
+ 
+   Upgrade: helm upgrade <release-name> <chart-name>
+
+   Rollback: helm rollback <release-name> <revision>
+
+10.what are helm repositories.   
+   Helm repositories are storage locations for Helm charts, where you can find and share Kubernetes application
+   packages. They can be public or private. You add them to your Helm setup using helm repo add, and
+   search/install charts using helm search repo and helm install. Repositories make it easy to deploy and 
+   manage applications on Kubernetes. 
+
+11.how can you create your own custom helm repository.
+
+   1.Package the Chart: Use helm package <chart-directory> to package your Helm chart.
+
+   2.Host the Repository: Upload the chart package to a web server or use GitHub Pages to host it.
+
+   3.Generate index.yaml: Run helm repo index <directory> --url <repository-url> to create the index file.
+
+   4.Add Repository to Helm: Use helm repo add <repo-name> <repository-url> to add your custom repository to Helm.
+
+12.how does helm handle secrets.
+   Helm doesn't handle secrets directly but can deploy Kubernetes Secrets as part of your charts. You can
+   define secrets in chart templates and Helm will create them in Kubernetes. For added security, you can use
+   the helm-secrets plugin to encrypt secrets with tools like SOPS. Helm can also manage secrets through 
+   ConfigMaps or environment variables. Best practices include using encrypted secrets and restricting access
+   with RBAC.
+
+13.explain helm dependencies.
+   Helm dependencies allow you to include other charts as part of your application. You define them in the
+   Chart.yaml file under the dependencies section. Use helm dependency update to fetch and install these
+   dependencies. Helm automatically manages them when you install or upgrade your chart. This helps in 
+   packaging and deploying applications that rely on other services like databases or message brokers.
+
+14.how do you customize a hlem chart.
+   You can customize a Helm chart by modifying its values.yaml file to change default settings like image names
+   or replica counts. Alternatively, use the --set flag to override values during installation. You can also
+   provide a custom values.yaml file with -f. For deeper customizations, modify the chart’s templates
+   (e.g., deployment.yaml).
+
+15.how do you ovverride values in a helm chart to customize it for a specific environment.
+
+  To override values for a specific environment in Helm:
+
+   1. Use a Custom values.yaml File:
+      helm install my-release <chart-name> -f values-prod.yaml
+
+   2. Use the --set Flag to override specific values:
+      helm install my-release <chart-name> --set replicaCount=3 --set image.tag=prod
+
+   3. Combine both methods for more flexibility:
+      helm install my-release <chart-name> -f values-prod.yaml --set image.tag=latest
+
+16.how do you handle helm chart versioning and best practices for release management.
+
+   Chart Versioning:
+   
+   Increment Chart Version: Update the version field in the Chart.yaml file for every new release. 
+                             Use Semantic Versioning (e.g., 1.2.3) to indicate changes:
+   Major: Breaking changes.
+   Minor: Backward-compatible features or fixes.
+   Patch: Bug fixes.
+  App Version: Separate from the chart version, the appVersion field indicates the version of the application
+              being deployed.
+
+
+   Release Versioning:
+   Helm Release History: Helm maintains a version history for each release. When upgrading, Helm assigns a
+                         new release revision number.
+   Rolling Back: If an upgrade goes wrong, use helm rollback <release-name> <revision-number> to revert to
+                  a previous version of the release.
+
+   Best Practices for Release Management:
+
+   Use Separate Environments: Maintain different Helm charts for development, staging, and production.
+   Customize each environment using different values.yaml files.
+
+   Use Helm Repositories: Store charts in repositories (e.g., public or private) for version control,
+   enabling easy upgrades and rollbacks.
+
+   Automate Releases: Implement CI/CD pipelines to automatically test, package, and deploy Helm charts to 
+   Kubernetes environments.
+
+   Document Changes: Keep clear change logs for each version of your charts to track changes in configurations, 
+   features, or bug fixes.
+
+17.how do you manage rolling update with helm.   
+
+   Managing rolling updates with Helm is straightforward because Helm leverages Kubernetes' built-in deployment
+   strategies. By default, Helm uses Kubernetes' RollingUpdate strategy for deployments, which ensures that
+   updates are applied gradually without downtime.
+
+   steps:
+   1.Helm uses Kubernetes' RollingUpdate strategy by default for deployments.
+   2.Trigger a rolling update by upgrading the Helm release (e.g., with a new image tag).
+   3.Use helm rollback if needed to revert to a previous version.
+   4.Monitor updates with kubectl rollout status.
+
+18.how do you test a helm chart before deploying it.   
+   
+   steps:
+   1.Lint the chart: helm lint <chart-directory>
+   2.Render the chart templates: helm template <release-name> <chart-directory>
+   3.Dry run the installation: helm install <release-name> <chart-directory> --dry-run
+   4.Update dependencies: helm dependency update <chart-directory>
+   5.Test the chart: helm test <release-name>
+
+19.how would you manage helm charts in a multi-cluster k8s environment.   
+   
+   1.Centralized Helm Chart Repository:
+     Host your Helm charts in a centralized repository (either public or private). This makes it easier to 
+     manage charts across multiple clusters. You can use repositories like ChartMuseum, Harbor, or a
+     cloud-based option like AWS S3 with Helm integration.
+
+   2.Version Control for Charts:
+      Use GitOps: Store Helm charts and configuration files in version-controlled repositories
+      (e.g., GitHub, GitLab, Bitbucket). This provides consistency and allows for rollback capabilities.
+      You can use ArgoCD or Flux for continuous deployment in multi-cluster environments.
+
+      Example: Store Helm charts in Git and link your CI/CD pipeline for automatic deployments.
+
+   3.Multi-cluster Deployment with Contexts:
+     Use Multiple Contexts: Configure different Kubernetes cluster contexts in your kubeconfig file.
+     Use Helm's --kube-context flag to specify which cluster to deploy to.
+
+   4.Environment-Specific Configuration:
+     Separate Configuration for Each Cluster: Use environment-specific values.yaml files for each cluster.
+     You can customize configurations like replica count, resource limits, and image versions for each environment.
+
+20.explain helm chart testing with helm test.
+   helm test is a command used to run tests against a Helm release. This command allows you to validate your
+   Helm chart deployment and ensure that the application is working as expected in the Kubernetes environment 
+   after installation or upgrade.
+

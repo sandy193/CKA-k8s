@@ -1,0 +1,83 @@
+ArgoCD image updater:
+
+without ArgoCD image updater, the problems are
+The CD pipeline is dependent on CI because CI part only updates the manifests image in the github. After the image is updated then only
+ArgoCD will automatically pull that image and deploy in Kubernetes cluster.
+
+Let's see how ArgoCD image updater will resolve above problem:
+ArgoCD image updater will continuously watches the dockerhub or any container registry, whenever the new image is stored in the repository then
+image updater automatically takes that image and update the image in manifests file then ArgoCD will automatically takes that deployment file from the github repo and deploy into Kubernetes cluster.
+
+pre-requisites for setting up ArgoCD image updater are:
+1.ArgoCD must be installed
+2.kubectl is installed
+3.application setup for ArgoCD.
+
+sed -i "s|image: 1nfosecsingh/demo-app:.*|image: 1nfosecsingh/demo-app:${{ env.VERSION }}|g" deploy/deploy.yaml
+
+setup for ArgoCD:
+
+Install argocd:
+
+Follow these steps to install argocd into cluster.
+
+1.create argocd namespace:  kubectl create namespace argocd
+
+2. install argocd:  kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+3. to verify the argocd pods -> kubectl get pods -n argocd
+
+Access argocd through UI:
+1.kubectl get svc
+2.kubectl edit svc argocd-server -n argocd -> to expose in browser Change type to NodePort.
+  or
+Just port-forward it and access from this url:
+
+kubectl port-forward service/argocd-server 8443:80
+
+access it in browser: http://localhost:8443/
+
+4. create the application in ArgoCD UI.
+
+
+Username: admin
+Password:
+
+For password follow below steps:
+1. Kubectl get secrets -n argocd
+2. Kubectl get secret initial-admin-password -o yaml
+3. It will display the content and at first it shows admin password
+4. Copy password
+5. Echo "password" | base64 -d  -> this will show the password. 
+
+
+setup for ArgoCD image updater:
+1.create a namespace called argocd -> kubectl create ns argocd
+
+2. install ArgoCD image updater: kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/stable/manifests/install.yaml
+
+now we need define the rules for ArgoCD image updater in application.
+
+1.we need to provide image name to search for github.
+argocd-image-updater.argoproj.io/image-list: image name followed by tag and value chanage.
+argocd-image-updater.argoproj.io/image-list: sandydocker19/spring-cicd:x -> here x indicates changes value
+2.update strategy type
+argocd-image-updater.argoproj.io/<replaceimage>.update-strategy: semver
+argocd-image-updater.argoproj.io/spring-cicd.update-strategy: semver
+
+3.where manifests files present and also store the git credentials because image updater needs to update the tag in github.
+argocd-image-updater.argoproj.io/write-back-method: git:secret:argocd/git-creds
+
+4.create the secret for git.
+kubectl -n argocd create secret generic git-creds \
+  --from-literal=username=sandy193 \
+  --from-literal=password= GitHub token
+
+the first 3 point need to add in the Annotations in application.
+if dockerhub repository is private then we need to create the secret for it to store the dockerhubcredential just like github.
+make sure that service account of ArgoCD image updater has access to the secrets for git credentials and also for the application.
+
+
+
+
+
