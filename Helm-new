@@ -1,0 +1,308 @@
+HELM:-
+
+
+Definition:-
+1. package manager for Kubernetes
+2. it allows to define, install, and upgrade applications containing multiple Kubernetes resources with a single command.
+
+3. with helm, we can:
+   
+    - package multiple Kubernetes manifests (called templates) into a single chart.
+    - Deploy, update and manage all the manifests from a chart with a single command.
+    - thoroughly customize the templates with Go templating features and custom values files.
+    - create and leverage reusable charts available either publicy or privately.
+    - charts for versioning application
+    - easily automate testing charts with helm hooks and helm CLI.
+
+-------------------------------------------------------------------------------
+
+chart files:-
+
+my-chart/
+│
+├── Chart.yaml          # Required. Metadata about the chart (name, version, description)
+├── values.yaml         # Default configuration values for templates
+├── charts/             # Optional. Subcharts (dependencies) go here
+├── templates/          # Required. Kubernetes manifest templates go here
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   ├── ingress.yaml
+│   ├── _helpers.tpl    # Helper templates (like functions or snippets)
+│   └── NOTES.txt       # Optional. Message shown after chart installation
+│
+└── README.md           # Optional. Description and usage instructions
+ 
+------------------------------------------------------------------
+
+common operations on releases:-
+
+helm package: creates a new TAR file.
+
+helm install: Deploy a new release.
+
+helm upgrade: update an existing release
+
+helm rollback: Revert to a previous release.
+
+helm uninstall: Remove a release.
+
+-------------------------------------------------------------------
+
+centralized repo for all helm charts:- https://artifacthub.io/
+
+--------------------------------------------------------------------
+
+* Helm is a package manager for Kubernetes that helps you manage Kubernetes applications using Charts (preconfigured resources). 
+
+Below is a list of commonly used Helm commands
+
+     Command	                                 Description
+helm version	                         Show the version of Helm
+helm help	                         List all available Helm commands
+helm repo add <name> <url>	         Add a Helm chart repository
+helm repo update	                 Update info about available charts
+helm search hub <keyword>	         Search Helm Hub for charts
+helm search repo <keyword>	         Search your added repositories
+helm install <release-name> <chart>	 Install a chart
+helm upgrade <release-name> <chart>	 Upgrade a release
+helm uninstall <release-name>	         Uninstall a release
+helm list	                         List releases
+helm status <release-name>	         Get the status of a release
+helm get all <release-name>	         Get all info about a release
+helm show values <chart>	         Show default values of a chart
+helm template <chart>	                 Render templates locally
+helm lint <chart>	                 Check chart for issues
+
+Working with Chart Values
+
+     Command	                                                 Description
+helm install -f values.yaml <release-name> <chart>	Install a chart with custom values
+helm upgrade -f values.yaml <release-name> <chart>	Upgrade using custom values
+helm get values <release-name>	                        Get the values of a release
+helm diff upgrade <release-name> <chart> (with plugin)	See what will change before upgrading
+
+Chart Management
+
+      Command	                                Description
+helm create <chart-name>	        Create a new chart 
+helm package <chart>	                Package a chart directory
+helm dependency update <chart-dir>	Update dependencies
+helm dependency build <chart-dir>	Build chart dependencies
+
+
+
+==========================================================================================================================================
+
+Creating helm charts:-
+
+helm create <chart name> = 
+
+it creates structure , 
+we can modify configuration , 
+templates (manifest files) , 
+package and publish chart : helm repo- chart.tgz, install release in cluster
+
+
+=====================================================================
+
+1. Named Templates (define and include)
+
+Code:
+# In _helpers.tpl
+{{- define "mychart.fullname" -}}
+{{ .Release.Name }}-{{ .Chart.Name }}
+{{- end }}
+
+Usage:
+# In deployment.yaml
+metadata:
+  name: {{ include "mychart.fullname" . }}
+
+Explanation:
+define creates a reusable snippet named "mychart.fullname".
+
+. is the context passed (full chart context: release, values, etc.).
+
+include calls the named template and inserts the output in the YAML.
+
+Output will be like: myrelease-mychart.
+--------------------------------------------------------------------
+
+
+ 2. @param Comments
+
+Code in values.yaml:
+
+## @param replicaCount Number of pod replicas to deploy
+
+replicaCount: 3
+
+Explanation:
+Purely documentation for humans or tools like helm-docs.
+
+Has no effect in Helm processing.
+
+Helps explain what each value does.
+----------------------------------------------------------------------
+
+3. if and if-else Conditions
+
+{{- if .Values.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: enabled-config
+{{- else }}
+
+# Skipping config because it's disabled
+{{- end }}
+
+Explanation:
+Checks if enabled: true in values.yaml.
+
+If true → render the ConfigMap.
+
+If false → skip or show alternative message.
+------------------------------------------------------------------------
+
+4. Variables ($var)
+
+
+{{- $name := .Chart.Name }}
+name: {{ $name }}
+
+Explanation:
+Declares a local variable $name.
+
+Assigns chart name (like mychart) to it.
+
+You can reuse $name without repeating .Chart.Name.
+------------------------------------------------------------------------
+
+5. Variable Scope (.)
+
+{{- define "mychart.name" }}
+{{ .Chart.Name }}
+{{- end }}
+
+{{ include "mychart.name" . }}
+
+Explanation:
+. (dot) is the current context — full data set from Helm.
+
+If you pass . to include, it passes the whole context.
+
+Always use . unless you're passing a smaller context.
+----------------------------------------------------------------------
+
+6. range Loops
+
+labels:
+  {{- range $key, $val := .Values.labels }}
+  {{ $key }}: {{ $val }}
+  {{- end }}
+
+
+With values.yaml:
+labels:
+  app: myapp
+  tier: backend
+
+Explanation:
+Loops over the labels map.
+
+Renders each key-value pair.
+
+Output:
+
+labels:
+  app: myapp
+  tier: backend
+---------------------------------------------------------------------
+
+7. Dot (.) Context
+
+{{- with .Values.image }}
+image: {{ .repository }}:{{ .tag }}
+{{- end }}
+
+
+With values.yaml:
+image:
+  repository: nginx
+  tag: latest
+
+Explanation:
+with changes . to point to .Values.image.
+
+Inside the block, .repository is nginx, .tag is latest.
+
+Output:
+
+image: nginx:latest
+-------------------------------------------------------------
+
+8. with Block
+
+{{- with .Values.resources }}
+resources:
+  limits:
+    cpu: {{ .limits.cpu }}
+{{- end }}
+
+With:
+resources:
+  limits:
+    cpu: "500m"
+
+Explanation:
+Enters .Values.resources block.
+
+Shortens path — no need to write .Values.resources.limits.cpu.
+
+If resources is empty, block is skipped.
+-------------------------------------------------------------------
+
+9. Validation Functions (e.g., required)
+
+image:
+  tag: {{ required "You must provide an image tag!" .Values.image.tag }}
+If image.tag is missing → error:
+
+arduino
+
+Error: You must provide an image tag!
+
+Explanation:
+required ensures a value is present.
+
+Prevents accidental deploys with missing critical values.
+-----------------------------------------------------------------------------------
+
+10. Custom Validation Logic (values.schema.json)
+
+Code (values.schema.json):
+
+{
+  "type": "object",
+  "properties": {
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "required": ["replicaCount"]
+}
+
+Explanation:
+Validates values.yaml before rendering templates.
+
+Ensures replicaCount is:
+
+Present (required)
+
+An integer ≥ 1
+
+Helps prevent invalid input and CI/CD issues.
+----------------------------------------------------------------------
+
